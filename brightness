@@ -1,0 +1,75 @@
+#!/bin/bash
+
+opt=$1
+val=$2
+
+STEP=10
+MON=$(xrandr | grep " connected" | cut -f1 -d" ")
+
+curr_bri_acpi=$(brightnessctl get)
+
+curr_bri_xrandr=$(xrandr --verbose --current | grep ^"$MON" -A5 | tail -n1 )
+curr_bri_xrandr="${curr_bri_xrandr##* }"
+
+echo "$curr_bri_acpi"
+echo "$curr_bri_xrandr"
+
+# brightness modes:
+#  upper: use acpi only
+#  mid: acpi=0, xrander=1. if up, use acpi, if down, xrandr
+#  lower: use xrander only
+mode=""
+
+if [[ $curr_bri_acpi -gt 0 ]]; then
+        mode="upper"
+elif [[ "$curr_bri_acpi" -eq 0 ]] && [[ "$(echo "$curr_bri_xrandr == 1" | bc)" -eq 1 ]]; then
+        mode="mid"
+elif [[ "$curr_bri_acpi" -eq 0 ]] && [[ "$(echo "$curr_bri_xrandr <= 1" | bc)" -eq 1 ]]; then
+        mode="lower"
+fi
+echo "$mode"
+
+case $opt in
+        up)
+                case "$mode" in
+                        "upper")
+                                brightnessctl set +10%
+                                ;;
+                        "mid")
+                                brightnessctl set +10%
+                                ;;
+                        "lower")
+                                xbright +
+                                ;;
+                esac
+                ;;
+        down)
+                case "$mode" in
+                        "upper")
+                                brightnessctl set 10%-
+                                ;;
+                        "mid")
+                                xbright -
+                                ;;
+                        "lower")
+                                xbright -
+                                ;;
+                esac
+                ;;
+        reset)
+                brightnessctl set 0
+                xbright 0
+                ;;
+        get)
+                echo $curr_bri_acpi
+                echo $curr_bri_xrandr
+                ;;
+        set)
+                echo "not implemented"
+                exit 1
+                ;;
+        *)
+                echo "incorrect usage"
+                exit 1
+                ;;
+esac
