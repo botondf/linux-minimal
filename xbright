@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Uses Xrandr to change brightness below physical lower limit
+# Repurposed from WinEunuuchs2Unixs on askubuntu.com
+# https://askubuntu.com/questions/1150339/increment-brightness-by-value-using-xrandr
+# with edits on that site from Jeff Luyet, user43870, and Mario Awad
+
+STEP=10          # Step Up/Down brightnes by: 5 = ".05", 10 = ".10", etc.
+MON=$(xrandr | grep " connected" | cut -f1 -d" ")
+
+CurrBright=$( xrandr --verbose --current | grep ^"$MON" -A5 | tail -n1 )
+CurrBright="${CurrBright##* }"  # Get brightness level with decimal place
+
+Left=${CurrBright%%"."*}        # Extract left of decimal point
+Right=${CurrBright#*"."}        # Extract right of decimal point
+
+MathBright="0"
+[[ "$Left" != 0 && "$STEP" -lt 10 ]] && STEP=10     # > 1.0, only .1 works
+[[ "$Left" != 0 ]] && MathBright="$Left"00          # 1.0 becomes "100"
+[[ "${#Right}" -eq 1 ]] && Right="$Right"0          # 0.5 becomes "50"
+MathBright=$(( MathBright + Right ))
+
+[[ "$1" == "Up" || "$1" == "+" ]] && MathBright=$(( MathBright + STEP ))
+[[ "$1" == "Down" || "$1" == "-" ]] && MathBright=$(( MathBright - STEP ))
+[[ "$1" == "Reset" || "$1" == "0" ]] && MathBright=100
+[[ "${MathBright:0:1}" == "-" ]] && MathBright=15    # Negative not allowed
+[[ "$MathBright" -gt 100  ]] && MathBright=100
+
+if [[ "${#MathBright}" -eq 3 ]] ; then
+    MathBright="$MathBright"000         # Pad with lots of zeros
+    CurrBright="${MathBright:0:1}.${MathBright:1:2}"
+else
+    MathBright="$MathBright"000         # Pad with lots of zeros
+    CurrBright=".${MathBright:0:2}"
+fi
+
+xrandr --output "$MON" --brightness "$CurrBright"   # Set new brightness
+
+# Display current brightness
+#printf "Monitor $MON "
+newout=$( xrandr --verbose  --current | grep ^"$MON" -A5 | tail -n1 )
+newout="${newout##* }"
+echo $newout
